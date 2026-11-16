@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>ThreadCard</title>
+  <rect width="32" height="32" rx="9" fill="#0A0A0A"/>
+  <rect x="6.5" y="5.5" width="19" height="21" rx="5" fill="#FAFAFA"/>
+  <path d="M10.5 13.25h11M10.5 17.25h8M10.5 21.25h5.5" stroke="#0A0A0A" stroke-width="2.1" stroke-linecap="round"/>
+  <circle cx="23.25" cy="22.75" r="4.75" fill="#0095F6" stroke="#FAFAFA" stroke-width="1.5"/>
+  <path d="M23.25 20.35v4.15M21.55 22.9l1.7 1.7 1.7-1.7" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
