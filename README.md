@@ -1,8 +1,17 @@
 # ThreadCard
 
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![React 19](https://img.shields.io/badge/React-19-087ea4?logo=react&logoColor=white)](https://react.dev)
+[![TypeScript 5](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Node.js 20.9+](https://img.shields.io/badge/Node.js-%E2%89%A5%2020.9-5fa04e?logo=nodedotjs&logoColor=white)](#getting-started)
+[![GitHub stars](https://img.shields.io/github/stars/zalramadhan/threadcard?logo=github&label=stars)](https://github.com/zalramadhan/threadcard/stargazers)
+
 Turn a public Threads post into a customisable image card you can download as PNG.
 
 Paste a Threads URL, tweak the text and styling, export at 1080 px wide. No login, no watermark, no QR code, no tracking.
+
+![ThreadCard editor: a post preview on the left, theme and text controls on the right](docs/editor.png)
 
 ## Features
 
