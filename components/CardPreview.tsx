@@ -43,7 +43,9 @@ export function CardPreview({ slide, settings, lang }: CardPreviewProps) {
     if (!element) return;
 
     const update = () => {
-      const height = element.getBoundingClientRect().height;
+      // offsetHeight ignores the ancestor's transform, so the measurement stays
+      // in canvas pixels instead of the already-scaled preview pixels.
+      const height = element.offsetHeight;
       if (height > 0) setCardHeight(height);
     };
 
