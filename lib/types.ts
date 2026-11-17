@@ -77,11 +77,15 @@ export interface CardSettings {
   fontSize: number;
   padding: number;
   aspect: AspectRatio;
+  cardScale: number;
+  cardX: number;
+  cardY: number;
   showAvatar: boolean;
   showVerified: boolean;
   showTimestamp: boolean;
   showCounts: boolean;
   showMedia: boolean;
+  showWatermark: boolean;
 }
 
 export interface SlideOverrides {
@@ -98,4 +102,16 @@ export interface SlideOverrides {
 export interface Slide {
   post: ThreadsPost;
   overrides: SlideOverrides;
+}
+
+export interface BackgroundVideo {
+  url: string;
+  name: string;
+  duration: number;
+}
+
+export interface BackgroundAudio {
+  url: string;
+  name: string;
+  duration: number;
 }

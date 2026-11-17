@@ -5,6 +5,8 @@ import { ControlPanel } from "@/components/ControlPanel";
 import { useI18n } from "@/components/I18nProvider";
 import { SlideTabs } from "@/components/SlideTabs";
 import type {
+  BackgroundAudio,
+  BackgroundVideo,
   CardSettings,
   Lang,
   Slide,
@@ -18,6 +20,19 @@ interface EditorProps {
   lang: Lang;
   source: "scrape" | "og" | "manual";
   busy: boolean;
+  backgroundVideo: BackgroundVideo | null;
+  onBackgroundVideo: (file: File) => void;
+  onRemoveBackgroundVideo: () => void;
+  backgroundAudio: BackgroundAudio | null;
+  onBackgroundAudio: (file: File) => void;
+  onRemoveBackgroundAudio: () => void;
+  audioVolume: number;
+  onAudioVolume: (value: number) => void;
+  audioStart: number;
+  onAudioStart: (value: number) => void;
+  videoClipLength: number;
+  musicPlaying: boolean;
+  onToggleMusic: () => void;
   onSlideChange: (index: number) => void;
   onSettings: (patch: Partial<CardSettings>) => void;
   onTheme: (themeId: string) => void;
@@ -26,6 +41,7 @@ interface EditorProps {
   onResetContent: () => void;
   onDownload: () => void;
   onDownloadAll: () => void;
+  onDownloadVideo: () => void;
   onCopy: () => void;
   onNewPost: () => void;
   onToast: (message: string) => void;
@@ -38,6 +54,19 @@ export function Editor({
   lang,
   source,
   busy,
+  backgroundVideo,
+  onBackgroundVideo,
+  onRemoveBackgroundVideo,
+  backgroundAudio,
+  onBackgroundAudio,
+  onRemoveBackgroundAudio,
+  audioVolume,
+  onAudioVolume,
+  audioStart,
+  onAudioStart,
+  videoClipLength,
+  musicPlaying,
+  onToggleMusic,
   onSlideChange,
   onSettings,
   onTheme,
@@ -46,6 +75,7 @@ export function Editor({
   onResetContent,
   onDownload,
   onDownloadAll,
+  onDownloadVideo,
   onCopy,
   onNewPost,
   onToast,
@@ -62,11 +92,16 @@ export function Editor({
             {t("editor.preview")}
           </span>
           <span className="text-[11px] text-neutral-400 dark:text-neutral-500">
-            PNG · 1080 px
+            {backgroundVideo ? "PNG · MP4/WebM · 1080 px" : "PNG · 1080 px"}
           </span>
         </div>
 
-        <CardPreview slide={slide} settings={settings} lang={lang} />
+        <CardPreview
+          slide={slide}
+          settings={settings}
+          lang={lang}
+          backgroundVideo={backgroundVideo?.url ?? null}
+        />
         <SlideTabs
           total={slides.length}
           active={active}
@@ -81,6 +116,19 @@ export function Editor({
         total={slides.length}
         source={source}
         busy={busy}
+        backgroundVideo={backgroundVideo}
+        onBackgroundVideo={onBackgroundVideo}
+        onRemoveBackgroundVideo={onRemoveBackgroundVideo}
+        backgroundAudio={backgroundAudio}
+        onBackgroundAudio={onBackgroundAudio}
+        onRemoveBackgroundAudio={onRemoveBackgroundAudio}
+        audioVolume={audioVolume}
+        onAudioVolume={onAudioVolume}
+        audioStart={audioStart}
+        onAudioStart={onAudioStart}
+        videoClipLength={videoClipLength}
+        musicPlaying={musicPlaying}
+        onToggleMusic={onToggleMusic}
         onSettings={onSettings}
         onTheme={onTheme}
         onResetLook={onResetLook}
@@ -88,6 +136,7 @@ export function Editor({
         onResetContent={onResetContent}
         onDownload={onDownload}
         onDownloadAll={onDownloadAll}
+        onDownloadVideo={onDownloadVideo}
         onCopy={onCopy}
         onNewPost={onNewPost}
         onToast={onToast}

@@ -9,11 +9,18 @@ import { I18nProvider, useI18n } from "@/components/I18nProvider";
 import { Toast } from "@/components/Toast";
 import { UrlForm } from "@/components/UrlForm";
 import {
+  captureVideoFrame,
   copyBlob,
   delay,
   downloadBlob,
+  nodeToOverlayCanvas,
   nodeToPngBlob,
+  readAudioDuration,
+  readVideoDuration,
+  recordingDuration,
+  recordCardVideo,
   slideFilename,
+  waitForVideoReady,
 } from "@/lib/export";
 import { fixedHeight } from "@/lib/format";
 import {
@@ -21,6 +28,8 @@ import {
   settingsForTheme,
 } from "@/lib/themes";
 import type {
+  BackgroundAudio,
+  BackgroundVideo,
   CardSettings,
   ErrorCode,
   FetchPostResponse,
@@ -32,6 +41,38 @@ import { normalizeThreadsUrl } from "@/lib/url";
 
 type Status = "idle" | "loading" | "error" | "ready";
 type Source = "scrape" | "og" | "manual";
+
+interface ExportRender {
+  frame: string | null;
+  transparent: boolean;
+}
+
+interface AudioGraph {
+  context: AudioContext;
+  gain: GainNode;
+  destination: MediaStreamAudioDestinationNode;
+}
+
+const DEFAULT_EXPORT_RENDER: ExportRender = {
+  frame: null,
+  transparent: false,
+};
+
+function applyVolume(gain: GainNode, volume: number): void {
+  gain.gain.value = Math.min(1, Math.max(0, volume / 100));
+}
+
+function nextPaint(): Promise<void> {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
+function findBackgroundVideo(): HTMLVideoElement | null {
+  return document.querySelector<HTMLVideoElement>("video[data-bg-video]");
+}
 
 function LoadingState() {
   return (
@@ -84,15 +125,147 @@ function ThreadCardApp() {
   const [source, setSource] = useState<Source>("scrape");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [backgroundVideo, setBackgroundVideo] =
+    useState<BackgroundVideo | null>(null);
+  const [backgroundAudio, setBackgroundAudio] =
+    useState<BackgroundAudio | null>(null);
+  const [audioVolume, setAudioVolume] = useState(100);
+  const [audioStart, setAudioStart] = useState(0);
+  const [musicPlaying, setMusicPlaying] = useState(false);
+  const [exportRender, setExportRender] =
+    useState<ExportRender>(DEFAULT_EXPORT_RENDER);
 
   const exportRefs = useRef<Array<HTMLDivElement | null>>([]);
   const requestId = useRef(0);
+  const backgroundVideoUrl = useRef<string | null>(null);
+  const backgroundAudioUrl = useRef<string | null>(null);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
+  const audioGraphRef = useRef<AudioGraph | null>(null);
+
+  const clipLength = recordingDuration(backgroundVideo?.duration ?? 0);
+  const audioDuration = backgroundAudio?.duration ?? 0;
+  const maxAudioStart = Math.max(0, audioDuration - clipLength);
+  const clampedAudioStart = Math.min(audioStart, maxAudioStart);
+  const musicLoops = clampedAudioStart + clipLength > audioDuration;
 
   useEffect(() => {
     if (!toast) return;
     const timeout = window.setTimeout(() => setToast(null), 3200);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    return () => {
+      if (backgroundVideoUrl.current) {
+        URL.revokeObjectURL(backgroundVideoUrl.current);
+      }
+      if (backgroundAudioUrl.current) {
+        URL.revokeObjectURL(backgroundAudioUrl.current);
+      }
+      void audioGraphRef.current?.context.close();
+    };
+  }, []);
+
+  const applyBackgroundVideo = useCallback(
+    (next: BackgroundVideo | null) => {
+      const previous = backgroundVideoUrl.current;
+      backgroundVideoUrl.current = next?.url ?? null;
+      setBackgroundVideo(next);
+      if (previous && previous !== next?.url) {
+        URL.revokeObjectURL(previous);
+      }
+    },
+    [],
+  );
+
+  const handleBackgroundVideo = useCallback(
+    async (file: File) => {
+      const url = URL.createObjectURL(file);
+      const duration = await readVideoDuration(url);
+      applyBackgroundVideo({ url, name: file.name, duration });
+    },
+    [applyBackgroundVideo],
+  );
+
+  const applyBackgroundAudio = useCallback((next: BackgroundAudio | null) => {
+    const previous = backgroundAudioUrl.current;
+    backgroundAudioUrl.current = next?.url ?? null;
+    setBackgroundAudio(next);
+    setMusicPlaying(false);
+    setAudioStart(0);
+    if (previous && previous !== next?.url) {
+      URL.revokeObjectURL(previous);
+    }
+  }, []);
+
+  const handleAudioStart = useCallback(
+    (value: number) => {
+      const next = Math.min(maxAudioStart, Math.max(0, value));
+      setAudioStart(next);
+      const element = musicRef.current;
+      if (element && !element.paused) element.currentTime = next;
+    },
+    [maxAudioStart],
+  );
+
+  const handleBackgroundAudio = useCallback(
+    async (file: File) => {
+      const url = URL.createObjectURL(file);
+      const duration = await readAudioDuration(url);
+      applyBackgroundAudio({ url, name: file.name, duration });
+    },
+    [applyBackgroundAudio],
+  );
+
+  const clearBackgroundVideo = useCallback(() => {
+    applyBackgroundVideo(null);
+    applyBackgroundAudio(null);
+  }, [applyBackgroundAudio, applyBackgroundVideo]);
+
+  const ensureAudioGraph = useCallback(async (): Promise<AudioGraph | null> => {
+    const element = musicRef.current;
+    if (!element) return null;
+
+    let graph = audioGraphRef.current;
+    if (!graph) {
+      const context = new AudioContext();
+      const source = context.createMediaElementSource(element);
+      const gain = context.createGain();
+      const destination = context.createMediaStreamDestination();
+      source.connect(gain);
+      gain.connect(destination);
+      gain.connect(context.destination);
+      graph = { context, gain, destination };
+      audioGraphRef.current = graph;
+    }
+
+    if (graph.context.state === "suspended") {
+      await graph.context.resume().catch(() => undefined);
+    }
+    applyVolume(graph.gain, audioVolume);
+    return graph;
+  }, [audioVolume]);
+
+  useEffect(() => {
+    const graph = audioGraphRef.current;
+    if (graph) applyVolume(graph.gain, audioVolume);
+  }, [audioVolume]);
+
+  const toggleMusic = useCallback(async () => {
+    const audio = musicRef.current;
+    if (!audio) return;
+
+    if (!audio.paused) {
+      audio.pause();
+      return;
+    }
+
+    const graph = await ensureAudioGraph();
+    if (!graph) return;
+
+    audio.currentTime = clampedAudioStart;
+    await audio.play().catch(() => undefined);
+  }, [clampedAudioStart, ensureAudioGraph]);
 
   const handleFetch = useCallback(
     async (rawUrl: string) => {
@@ -196,7 +369,10 @@ function ThreadCardApp() {
     setSettings(defaultSettings());
     setSource("scrape");
     setBusy(false);
-  }, []);
+    applyBackgroundVideo(null);
+    applyBackgroundAudio(null);
+    setExportRender(DEFAULT_EXPORT_RENDER);
+  }, [applyBackgroundAudio, applyBackgroundVideo]);
 
   const handleSettings = useCallback((patch: Partial<CardSettings>) => {
     setSettings((previous) => ({ ...previous, ...patch }));
@@ -231,9 +407,26 @@ function ThreadCardApp() {
     async (index: number): Promise<Blob> => {
       const node = exportRefs.current[index];
       if (!node) throw new Error("Export node not found");
-      return nodeToPngBlob(node, settings.background);
+
+      let frame: string | null = null;
+      if (backgroundVideo) {
+        const video = findBackgroundVideo();
+        if (video) {
+          await waitForVideoReady(video);
+          frame = captureVideoFrame(video);
+        }
+      }
+
+      setExportRender({ frame, transparent: false });
+      await nextPaint();
+
+      try {
+        return await nodeToPngBlob(node, settings.background);
+      } finally {
+        setExportRender(DEFAULT_EXPORT_RENDER);
+      }
     },
-    [settings.background],
+    [backgroundVideo, settings.background],
   );
 
   const handleDownload = useCallback(async () => {
@@ -272,6 +465,84 @@ function ThreadCardApp() {
       setBusy(false);
     }
   }, [busy, exportSlide, slides, t]);
+
+  const handleDownloadVideo = useCallback(async () => {
+    if (busy || !backgroundVideo) return;
+    const slide = slides[active];
+    if (!slide) return;
+
+    let music: HTMLAudioElement | null = null;
+    setBusy(true);
+    try {
+      const node = exportRefs.current[active];
+      if (!node) throw new Error("Export node not found");
+
+      const video = findBackgroundVideo();
+      if (!video) throw new Error("Background video is not ready");
+
+      let audioTrack: MediaStreamTrack | null = null;
+      if (backgroundAudio) {
+        try {
+          music = musicRef.current;
+          if (music) {
+            const graph = await ensureAudioGraph();
+            audioTrack =
+              graph?.destination.stream.getAudioTracks()[0] ?? null;
+          }
+        } catch (caught) {
+          console.error(caught);
+          audioTrack = null;
+        }
+      }
+
+      setExportRender({ frame: null, transparent: true });
+      await nextPaint();
+
+      const overlay = await nodeToOverlayCanvas(node);
+      setExportRender(DEFAULT_EXPORT_RENDER);
+      await nextPaint();
+
+      const { blob, extension } = await recordCardVideo(
+        video,
+        overlay,
+        backgroundVideo.duration,
+        audioTrack,
+        () => {
+          if (!music || !audioTrack) return;
+          music.currentTime = clampedAudioStart;
+          music.loop = musicLoops;
+          void music.play().catch(() => undefined);
+        },
+      );
+      downloadBlob(
+        blob,
+        slideFilename(slide.post, active, slides.length, extension),
+      );
+      setToast(
+        t("toast.videoDownloaded", { format: extension.toUpperCase() }),
+      );
+    } catch (caught) {
+      console.error(caught);
+      setExportRender(DEFAULT_EXPORT_RENDER);
+      setToast(t("toast.videoFailed"));
+    } finally {
+      if (music) {
+        music.pause();
+        music.currentTime = clampedAudioStart;
+      }
+      setBusy(false);
+    }
+  }, [
+    active,
+    backgroundAudio,
+    backgroundVideo,
+    busy,
+    clampedAudioStart,
+    ensureAudioGraph,
+    musicLoops,
+    slides,
+    t,
+  ]);
 
   const handleCopy = useCallback(async () => {
     if (busy) return;
@@ -374,10 +645,32 @@ function ThreadCardApp() {
               lang={lang}
               source={source}
               busy={busy}
+              backgroundVideo={backgroundVideo}
+              onBackgroundVideo={(file) => {
+                void handleBackgroundVideo(file);
+              }}
+              onRemoveBackgroundVideo={clearBackgroundVideo}
+              backgroundAudio={backgroundAudio}
+              onBackgroundAudio={(file) => {
+                void handleBackgroundAudio(file);
+              }}
+              onRemoveBackgroundAudio={() => applyBackgroundAudio(null)}
+              audioVolume={audioVolume}
+              onAudioVolume={setAudioVolume}
+              audioStart={clampedAudioStart}
+              onAudioStart={handleAudioStart}
+              videoClipLength={clipLength}
+              musicPlaying={musicPlaying}
+              onToggleMusic={() => {
+                void toggleMusic();
+              }}
               onSlideChange={setActive}
               onSettings={handleSettings}
               onTheme={handleTheme}
-              onResetLook={() => setSettings(defaultSettings())}
+              onResetLook={() => {
+                setSettings(defaultSettings());
+                clearBackgroundVideo();
+              }}
               onOverride={handleOverride}
               onResetContent={handleResetContent}
               onDownload={() => {
@@ -385,6 +678,9 @@ function ThreadCardApp() {
               }}
               onDownloadAll={() => {
                 void handleDownloadAll();
+              }}
+              onDownloadVideo={() => {
+                void handleDownloadVideo();
               }}
               onCopy={() => {
                 void handleCopy();
@@ -398,6 +694,24 @@ function ThreadCardApp() {
 
       <Footer />
       <Toast message={toast} />
+
+      <audio
+        ref={musicRef}
+        src={backgroundAudio?.url}
+        loop={musicLoops}
+        onPlay={() => setMusicPlaying(true)}
+        onPause={() => setMusicPlaying(false)}
+        onEnded={() => setMusicPlaying(false)}
+        onTimeUpdate={(event) => {
+          if (musicLoops) return;
+          const audio = event.currentTarget;
+          if (audio.currentTime >= clampedAudioStart + clipLength) {
+            audio.pause();
+            audio.currentTime = clampedAudioStart;
+          }
+        }}
+        className="hidden"
+      />
 
       {status === "ready" && currentSlide && (
         <div
@@ -417,6 +731,8 @@ function ThreadCardApp() {
                 settings={settings}
                 lang={lang}
                 height={fixedHeight(settings.aspect)}
+                backgroundFrame={exportRender.frame}
+                transparentBackground={exportRender.transparent}
               />
             </div>
           ))}

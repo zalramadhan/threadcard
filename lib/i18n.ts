@@ -9,7 +9,7 @@ const id = {
 
   "hero.title": "Ubah post Threads jadi gambar.",
   "hero.subtitle":
-    "Tempel link post publik, atur tampilannya, lalu unduh PNG. Gratis, tanpa login, tanpa watermark.",
+    "Tempel link post publik, atur tampilannya, lalu unduh PNG. Gratis, tanpa login.",
   "hero.placeholder": "Tempel link post Threads…",
   "hero.cta": "Buat gambar",
   "hero.note": "Hanya post publik. Tanpa QR, tanpa akun, tanpa pelacakan.",
@@ -17,6 +17,7 @@ const id = {
   "state.loading": "Mengambil post…",
   "state.loadingHint": "Biasanya kurang dari 5 detik.",
   "state.exporting": "Menyiapkan PNG…",
+  "state.recordingVideo": "Merekam video…",
 
   "error.title": "Post tidak bisa diambil",
   "error.invalid": "Link Threads tidak valid. Pastikan itu link post, bukan profil.",
@@ -39,6 +40,25 @@ const id = {
   "editor.look": "Tampilan",
   "editor.theme": "Tema",
   "editor.background": "Background",
+  "editor.videoBackground": "Video background",
+  "editor.videoHint": "MP4/WebM · maks 25 MB · ekspor 12 dtk",
+  "editor.uploadVideo": "Upload video",
+  "editor.replaceVideo": "Ganti",
+  "editor.removeVideo": "Hapus",
+  "editor.videoInvalid": "Video harus MP4 atau WebM, maksimal 25 MB.",
+
+  "editor.music": "Musik latar",
+  "editor.musicHint": "MP3/M4A/WAV · maks 20 MB",
+  "editor.uploadMusic": "Upload musik",
+  "editor.replaceMusic": "Ganti",
+  "editor.removeMusic": "Hapus",
+  "editor.musicVolume": "Volume musik",
+  "editor.musicTimeline": "Timeline musik",
+  "editor.musicStart": "Mulai musik",
+  "editor.musicTimelineHint": "Bagian ini yang direkam ke video (±{n} dtk).",
+  "editor.playMusic": "Putar",
+  "editor.pauseMusic": "Jeda",
+  "editor.musicInvalid": "File harus audio (MP3/M4A/WAV), maksimal 20 MB.",
   "editor.textColor": "Warna teks",
   "editor.font": "Font",
   "editor.fontSize": "Ukuran teks",
@@ -59,6 +79,8 @@ const id = {
   "editor.avatarTooLarge": "Avatar maksimal 2 MB.",
   "editor.elements": "Elemen",
   "editor.size": "Ukuran",
+  "editor.cardScale": "Skala kartu",
+  "editor.position": "Posisi",
   "editor.export": "Ekspor",
 
   "toggle.avatar": "Avatar",
@@ -66,6 +88,7 @@ const id = {
   "toggle.timestamp": "Tanggal",
   "toggle.counts": "Bar interaksi",
   "toggle.media": "Media",
+  "toggle.watermark": "Watermark",
 
   "font.sans": "Sans",
   "font.serif": "Serif",
@@ -76,7 +99,12 @@ const id = {
   "aspect.4:5": "4:5",
   "aspect.9:16": "9:16",
 
+  "editor.offsetX": "Horizontal",
+  "editor.offsetY": "Vertikal",
+  "editor.positionHint": "0% = tengah. Bebas digeser, termasuk keluar kanvas.",
+
   "action.download": "Unduh PNG",
+  "action.downloadVideo": "Unduh video",
   "action.downloadAll": "Unduh semua",
   "action.copy": "Salin gambar",
   "action.copied": "Tersalin",
@@ -91,6 +119,8 @@ const id = {
   "toast.downloaded": "Gambar diunduh.",
   "toast.allDownloaded": "{total} slide diunduh.",
   "toast.exportFailed": "Gagal membuat gambar. Coba lagi.",
+  "toast.videoDownloaded": "Video {format} diunduh.",
+  "toast.videoFailed": "Gagal membuat video. Coba browser lain.",
   "toast.copySuccess": "Gambar disalin.",
   "toast.copyFallback":
     "Browser ini tidak mendukung salin gambar. Gambar diunduh sebagai gantinya.",
@@ -115,7 +145,7 @@ const en: Record<MessageKey, string> = {
 
   "hero.title": "Turn Threads posts into images.",
   "hero.subtitle":
-    "Paste a public post link, style it, then download a PNG. Free, no sign-up, no watermark.",
+    "Paste a public post link, style it, then download a PNG. Free, no sign-up.",
   "hero.placeholder": "Paste a Threads post link…",
   "hero.cta": "Create image",
   "hero.note": "Public posts only. No QR, no account, no tracking.",
@@ -123,6 +153,7 @@ const en: Record<MessageKey, string> = {
   "state.loading": "Fetching post…",
   "state.loadingHint": "Usually under 5 seconds.",
   "state.exporting": "Preparing PNG…",
+  "state.recordingVideo": "Recording video…",
 
   "error.title": "Could not fetch this post",
   "error.invalid":
@@ -150,6 +181,25 @@ const en: Record<MessageKey, string> = {
   "editor.look": "Look",
   "editor.theme": "Theme",
   "editor.background": "Background",
+  "editor.videoBackground": "Video background",
+  "editor.videoHint": "MP4/WebM · max 25 MB · 12s export",
+  "editor.uploadVideo": "Upload video",
+  "editor.replaceVideo": "Replace",
+  "editor.removeVideo": "Remove",
+  "editor.videoInvalid": "The video must be MP4 or WebM, 25 MB max.",
+
+  "editor.music": "Background music",
+  "editor.musicHint": "MP3/M4A/WAV · 20 MB max",
+  "editor.uploadMusic": "Upload music",
+  "editor.replaceMusic": "Replace",
+  "editor.removeMusic": "Remove",
+  "editor.musicVolume": "Music volume",
+  "editor.musicTimeline": "Music timeline",
+  "editor.musicStart": "Music start",
+  "editor.musicTimelineHint": "This section is what gets recorded into the video (~{n}s).",
+  "editor.playMusic": "Play",
+  "editor.pauseMusic": "Pause",
+  "editor.musicInvalid": "The file must be audio (MP3/M4A/WAV), 20 MB max.",
   "editor.textColor": "Text color",
   "editor.font": "Font",
   "editor.fontSize": "Text size",
@@ -170,6 +220,8 @@ const en: Record<MessageKey, string> = {
   "editor.avatarTooLarge": "Avatar must be 2 MB or smaller.",
   "editor.elements": "Elements",
   "editor.size": "Size",
+  "editor.cardScale": "Card scale",
+  "editor.position": "Position",
   "editor.export": "Export",
 
   "toggle.avatar": "Avatar",
@@ -177,6 +229,7 @@ const en: Record<MessageKey, string> = {
   "toggle.timestamp": "Date",
   "toggle.counts": "Engagement bar",
   "toggle.media": "Media",
+  "toggle.watermark": "Watermark",
 
   "font.sans": "Sans",
   "font.serif": "Serif",
@@ -187,7 +240,12 @@ const en: Record<MessageKey, string> = {
   "aspect.4:5": "4:5",
   "aspect.9:16": "9:16",
 
+  "editor.offsetX": "Horizontal",
+  "editor.offsetY": "Vertical",
+  "editor.positionHint": "0% = centered. Move freely, even off-canvas.",
+
   "action.download": "Download PNG",
+  "action.downloadVideo": "Download video",
   "action.downloadAll": "Download all",
   "action.copy": "Copy image",
   "action.copied": "Copied",
@@ -202,6 +260,8 @@ const en: Record<MessageKey, string> = {
   "toast.downloaded": "Image downloaded.",
   "toast.allDownloaded": "{total} slides downloaded.",
   "toast.exportFailed": "Could not create the image. Try again.",
+  "toast.videoDownloaded": "Video {format} downloaded.",
+  "toast.videoFailed": "Could not create the video. Try another browser.",
   "toast.copySuccess": "Image copied.",
   "toast.copyFallback":
     "This browser cannot copy images. The image was downloaded instead.",

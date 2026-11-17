@@ -10,9 +10,15 @@ interface CardPreviewProps {
   slide: Slide;
   settings: CardSettings;
   lang: Lang;
+  backgroundVideo?: string | null;
 }
 
-export function CardPreview({ slide, settings, lang }: CardPreviewProps) {
+export function CardPreview({
+  slide,
+  settings,
+  lang,
+  backgroundVideo = null,
+}: CardPreviewProps) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -78,6 +84,7 @@ export function CardPreview({ slide, settings, lang }: CardPreviewProps) {
             settings={settings}
             lang={lang}
             height={fixedHeight(settings.aspect)}
+            backgroundVideo={backgroundVideo}
           />
         </div>
       </div>

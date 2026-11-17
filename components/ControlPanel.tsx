@@ -12,6 +12,8 @@ import type { MessageKey } from "@/lib/i18n";
 import { THEMES } from "@/lib/themes";
 import type {
   AspectRatio,
+  BackgroundAudio,
+  BackgroundVideo,
   CardSettings,
   Lang,
   Slide,
@@ -20,6 +22,17 @@ import type {
 
 const inputClass =
   "w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-neutral-400 dark:focus:ring-neutral-400/20";
+
+const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
+const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|ogg|oga|opus|webm)$/i;
+
+function formatClock(seconds: number): string {
+  const safe = Math.max(0, seconds);
+  const minutes = Math.floor(safe / 60);
+  const rest = Math.floor(safe % 60);
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
+}
 
 const ASPECTS: Array<{
   value: AspectRatio;
@@ -39,6 +52,19 @@ interface ControlPanelProps {
   total: number;
   source: "scrape" | "og" | "manual";
   busy: boolean;
+  backgroundVideo: BackgroundVideo | null;
+  onBackgroundVideo: (file: File) => void;
+  onRemoveBackgroundVideo: () => void;
+  backgroundAudio: BackgroundAudio | null;
+  onBackgroundAudio: (file: File) => void;
+  onRemoveBackgroundAudio: () => void;
+  audioVolume: number;
+  onAudioVolume: (value: number) => void;
+  audioStart: number;
+  onAudioStart: (value: number) => void;
+  videoClipLength: number;
+  musicPlaying: boolean;
+  onToggleMusic: () => void;
   onSettings: (patch: Partial<CardSettings>) => void;
   onTheme: (themeId: string) => void;
   onResetLook: () => void;
@@ -46,6 +72,7 @@ interface ControlPanelProps {
   onResetContent: () => void;
   onDownload: () => void;
   onDownloadAll: () => void;
+  onDownloadVideo: () => void;
   onCopy: () => void;
   onNewPost: () => void;
   onToast: (message: string) => void;
@@ -150,6 +177,19 @@ export function ControlPanel({
   total,
   source,
   busy,
+  backgroundVideo,
+  onBackgroundVideo,
+  onRemoveBackgroundVideo,
+  backgroundAudio,
+  onBackgroundAudio,
+  onRemoveBackgroundAudio,
+  audioVolume,
+  onAudioVolume,
+  audioStart,
+  onAudioStart,
+  videoClipLength,
+  musicPlaying,
+  onToggleMusic,
   onSettings,
   onTheme,
   onResetLook,
@@ -157,6 +197,7 @@ export function ControlPanel({
   onResetContent,
   onDownload,
   onDownloadAll,
+  onDownloadVideo,
   onCopy,
   onNewPost,
   onToast,
@@ -164,6 +205,8 @@ export function ControlPanel({
   const { t } = useI18n();
   const { post, overrides } = slide;
   const avatarInput = useRef<HTMLInputElement>(null);
+  const videoInput = useRef<HTMLInputElement>(null);
+  const audioInput = useRef<HTMLInputElement>(null);
 
   const displayName = overrides.displayName ?? post.author.displayName;
   const username = overrides.username ?? post.author.username;
@@ -172,6 +215,18 @@ export function ControlPanel({
     overrides.timestamp ?? formatDate(post.createdAt, lang);
 
   const avatarSrc = overrides.avatarDataUrl ?? post.author.avatarUrl;
+
+  const audioDuration = backgroundAudio?.duration ?? 0;
+  const maxStart = Math.max(0, audioDuration - videoClipLength);
+  const windowLength =
+    audioDuration > 0 ? Math.min(videoClipLength, audioDuration) : videoClipLength;
+  const startPercent =
+    audioDuration > 0 ? (Math.min(audioStart, maxStart) / audioDuration) * 100 : 0;
+  const windowPercent =
+    audioDuration > 0 ? (windowLength / audioDuration) * 100 : 0;
+  const tickSeconds = audioDuration <= 30 ? 1 : audioDuration <= 120 ? 5 : 10;
+  const tickPercent =
+    audioDuration > 0 ? (tickSeconds / audioDuration) * 100 : 0;
 
   const handleAvatar = (file: File | undefined) => {
     if (!file) return;
@@ -187,6 +242,26 @@ export function ControlPanel({
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleVideo = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("video/") || file.size > MAX_VIDEO_BYTES) {
+      onToast(t("editor.videoInvalid"));
+      return;
+    }
+    onBackgroundVideo(file);
+  };
+
+  const handleAudio = (file: File | undefined) => {
+    if (!file) return;
+    const isAudio =
+      file.type.startsWith("audio/") || AUDIO_EXTENSIONS.test(file.name);
+    if (!isAudio || file.size > MAX_AUDIO_BYTES) {
+      onToast(t("editor.musicInvalid"));
+      return;
+    }
+    onBackgroundAudio(file);
   };
 
   return (
@@ -271,6 +346,180 @@ export function ControlPanel({
             />
           </label>
         </div>
+
+        <div className="rounded-xl border border-neutral-200 px-3 py-2.5 dark:border-neutral-800">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <span className="block text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                {t("editor.videoBackground")}
+              </span>
+              <span className="block truncate text-[11px] text-neutral-400 dark:text-neutral-500">
+                {backgroundVideo
+                  ? `${backgroundVideo.name}${
+                      backgroundVideo.duration > 0
+                        ? ` · ${Math.round(backgroundVideo.duration)}s`
+                        : ""
+                    }`
+                  : t("editor.videoHint")}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {backgroundVideo && (
+                <button
+                  type="button"
+                  onClick={onRemoveBackgroundVideo}
+                  className="rounded-lg px-2 py-1 text-[11px] font-medium text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                >
+                  {t("editor.removeVideo")}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => videoInput.current?.click()}
+                className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              >
+                {backgroundVideo
+                  ? t("editor.replaceVideo")
+                  : t("editor.uploadVideo")}
+              </button>
+            </div>
+          </div>
+          <input
+            ref={videoInput}
+            type="file"
+            accept="video/mp4,video/webm"
+            className="sr-only"
+            onChange={(event) => {
+              handleVideo(event.target.files?.[0]);
+              event.currentTarget.value = "";
+            }}
+          />
+        </div>
+
+        {backgroundVideo && (
+          <div className="rounded-xl border border-neutral-200 px-3 py-2.5 dark:border-neutral-800">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 overflow-hidden">
+                <span className="block whitespace-nowrap text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                  {t("editor.music")}
+                </span>
+                <span className="block truncate text-[11px] text-neutral-400 dark:text-neutral-500">
+                  {backgroundAudio
+                    ? `${backgroundAudio.name}${
+                        backgroundAudio.duration > 0
+                          ? ` · ${Math.round(backgroundAudio.duration)}s`
+                          : ""
+                      }`
+                    : t("editor.musicHint")}
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onToggleMusic}
+                  disabled={!backgroundAudio}
+                  className="rounded-lg px-2 py-1 text-[11px] font-medium text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800 disabled:opacity-40"
+                >
+                  {musicPlaying
+                    ? t("editor.pauseMusic")
+                    : t("editor.playMusic")}
+                </button>
+                {backgroundAudio && (
+                  <button
+                    type="button"
+                    onClick={onRemoveBackgroundAudio}
+                    className="rounded-lg px-2 py-1 text-[11px] font-medium text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                  >
+                    {t("editor.removeMusic")}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => audioInput.current?.click()}
+                  className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                >
+                  {backgroundAudio
+                    ? t("editor.replaceMusic")
+                    : t("editor.uploadMusic")}
+                </button>
+              </div>
+            </div>
+            <input
+              ref={audioInput}
+              type="file"
+              accept="audio/*"
+              className="sr-only"
+              onChange={(event) => {
+                handleAudio(event.target.files?.[0]);
+                event.currentTarget.value = "";
+              }}
+            />
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-medium text-neutral-600 dark:text-neutral-300">
+                  {t("editor.musicTimeline")}
+                </span>
+                <span className="tabular-nums text-neutral-400 dark:text-neutral-500">
+                  {formatClock(audioStart)} –{" "}
+                  {formatClock(audioStart + windowLength)}
+                </span>
+              </div>
+              <div
+                className="relative mt-2 h-9 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800"
+                style={{
+                  backgroundImage: `repeating-linear-gradient(to right, rgba(115,115,115,0.35) 0 1px, transparent 1px ${tickPercent}%)`,
+                }}
+              >
+                <div
+                  className="absolute inset-y-0 border-x border-neutral-900 bg-neutral-900/15 dark:border-neutral-100 dark:bg-white/20"
+                  style={{
+                    left: `${startPercent}%`,
+                    width: `${windowPercent}%`,
+                  }}
+                />
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={maxStart}
+                step={0.1}
+                value={audioStart}
+                onChange={(event) => onAudioStart(Number(event.target.value))}
+                aria-label={t("editor.musicStart")}
+                className="mt-2 w-full accent-neutral-950 dark:accent-neutral-100"
+              />
+              <p className="mt-1.5 text-[10px] text-neutral-400 dark:text-neutral-500">
+                {t("editor.musicTimelineHint", {
+                  n: Math.round(videoClipLength),
+                })}
+              </p>
+            </div>
+            {backgroundAudio && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-neutral-600 dark:text-neutral-300">
+                    {t("editor.musicVolume")}
+                  </span>
+                  <span className="tabular-nums text-neutral-400 dark:text-neutral-500">
+                    {audioVolume}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={audioVolume}
+                  onChange={(event) =>
+                    onAudioVolume(Number(event.target.value))
+                  }
+                  aria-label={t("editor.musicVolume")}
+                  className="mt-2 w-full accent-neutral-950 dark:accent-neutral-100"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div>
           <span className="mb-1.5 block text-[11px] font-medium text-neutral-500 dark:text-neutral-400">
@@ -530,6 +779,11 @@ export function ControlPanel({
           checked={settings.showMedia}
           onChange={(value) => onSettings({ showMedia: value })}
         />
+        <Toggle
+          label={t("toggle.watermark")}
+          checked={settings.showWatermark}
+          onChange={(value) => onSettings({ showWatermark: value })}
+        />
       </Section>
 
       <Section title={t("editor.size")}>
@@ -564,6 +818,85 @@ export function ControlPanel({
             );
           })}
         </div>
+        <div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-neutral-600 dark:text-neutral-300">
+              {t("editor.cardScale")}
+            </span>
+            <span className="tabular-nums text-neutral-400 dark:text-neutral-500">
+              {settings.cardScale}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min={40}
+            max={120}
+            step={5}
+            value={settings.cardScale}
+            onChange={(event) =>
+              onSettings({ cardScale: Number(event.target.value) })
+            }
+            aria-label={t("editor.cardScale")}
+            className="mt-2 w-full accent-neutral-950 dark:accent-neutral-100"
+          />
+        </div>
+
+        <div>
+          <span className="mb-1.5 block text-[11px] font-medium text-neutral-500 dark:text-neutral-400">
+            {t("editor.position")}
+          </span>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-neutral-600 dark:text-neutral-300">
+                  {t("editor.offsetX")}
+                </span>
+                <span className="tabular-nums text-neutral-400 dark:text-neutral-500">
+                  {settings.cardX > 0 ? "+" : ""}
+                  {settings.cardX}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={-50}
+                max={50}
+                step={1}
+                value={settings.cardX}
+                onChange={(event) =>
+                  onSettings({ cardX: Number(event.target.value) })
+                }
+                aria-label={t("editor.offsetX")}
+                className="mt-2 w-full accent-neutral-950 dark:accent-neutral-100"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-neutral-600 dark:text-neutral-300">
+                  {t("editor.offsetY")}
+                </span>
+                <span className="tabular-nums text-neutral-400 dark:text-neutral-500">
+                  {settings.cardY > 0 ? "+" : ""}
+                  {settings.cardY}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={-50}
+                max={50}
+                step={1}
+                value={settings.cardY}
+                onChange={(event) =>
+                  onSettings({ cardY: Number(event.target.value) })
+                }
+                aria-label={t("editor.offsetY")}
+                className="mt-2 w-full accent-neutral-950 dark:accent-neutral-100"
+              />
+            </div>
+          </div>
+          <p className="mt-1.5 text-[10px] text-neutral-400 dark:text-neutral-500">
+            {t("editor.positionHint")}
+          </p>
+        </div>
       </Section>
 
       <Section title={t("editor.export")}>
@@ -576,6 +909,18 @@ export function ControlPanel({
           {busy ? <SpinnerIcon size={16} /> : <DownloadIcon size={16} />}
           {busy ? t("state.exporting") : t("action.download")}
         </button>
+
+        {backgroundVideo && (
+          <button
+            type="button"
+            onClick={onDownloadVideo}
+            disabled={busy}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+          >
+            {busy ? <SpinnerIcon size={16} /> : <DownloadIcon size={16} />}
+            {busy ? t("state.recordingVideo") : t("action.downloadVideo")}
+          </button>
+        )}
 
         <button
           type="button"

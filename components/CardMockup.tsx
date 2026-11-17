@@ -38,6 +38,9 @@ interface CardMockupProps {
   settings: CardSettings;
   lang: Lang;
   height: number | null;
+  backgroundVideo?: string | null;
+  backgroundFrame?: string | null;
+  transparentBackground?: boolean;
 }
 
 function proxied(url: string): string {
@@ -283,9 +286,15 @@ export function CardMockup({
   settings,
   lang,
   height,
+  backgroundVideo = null,
+  backgroundFrame = null,
+  transparentBackground = false,
 }: CardMockupProps) {
   const { post, overrides } = slide;
   const theme = getTheme(settings.themeId);
+  const cardScale = Math.min(120, Math.max(40, settings.cardScale)) / 100;
+  const cardX = Math.min(50, Math.max(-50, settings.cardX));
+  const cardY = Math.min(50, Math.max(-50, settings.cardY));
 
   const displayName = overrides.displayName ?? post.author.displayName;
   const username = (overrides.username ?? post.author.username).replace(
@@ -307,17 +316,17 @@ export function CardMockup({
   const shares = post.counts.shares;
 
   const showHeader = settings.showAvatar || displayName || username;
-  const fixedHeight = height !== null;
 
   return (
     <div
       data-card-root
       style={{
+        position: "relative",
         width: CANVAS_WIDTH,
         height: height ?? undefined,
         minHeight: height ?? 1080,
         maxHeight: height ?? MAX_AUTO_HEIGHT,
-        background: settings.background,
+        background: transparentBackground ? "transparent" : settings.background,
         padding: CANVAS_PADDING,
         boxSizing: "border-box",
         display: "flex",
@@ -326,12 +335,53 @@ export function CardMockup({
         overflow: "hidden",
       }}
     >
+      {backgroundVideo && !backgroundFrame && (
+        <video
+          data-bg-video
+          src={backgroundVideo}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      {backgroundFrame && (
+        <img
+          src={backgroundFrame}
+          alt=""
+          draggable={false}
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       <article
         style={{
+          position: "relative",
+          zIndex: 1,
+          transform: `translate(${(cardX / 100) * CANVAS_WIDTH}px, ${
+            (cardY / 100) * CANVAS_WIDTH
+          }px) scale(${cardScale})`,
+          transformOrigin: "center",
           width: "100%",
-          height: fixedHeight
-            ? height - CANVAS_PADDING * 2
-            : undefined,
           background: theme.card,
           border: `1px solid ${theme.border}`,
           borderRadius: 24,
@@ -340,7 +390,6 @@ export function CardMockup({
           fontFamily: FONT_STACK[settings.font],
           display: "flex",
           flexDirection: "column",
-          justifyContent: fixedHeight ? "center" : "flex-start",
           gap: 28,
           boxSizing: "border-box",
           overflow: "hidden",
@@ -514,6 +563,29 @@ export function CardMockup({
           </div>
         )}
       </article>
+
+      {settings.showWatermark && (
+        <div
+          style={{
+            position: "absolute",
+            right: 28,
+            bottom: 24,
+            zIndex: 2,
+            padding: "6px 14px",
+            borderRadius: 9999,
+            background: "rgba(0, 0, 0, 0.42)",
+            color: "#FFFFFF",
+            fontFamily: FONT_STACK[settings.font],
+            fontSize: 20,
+            fontWeight: 500,
+            letterSpacing: "0.04em",
+            lineHeight: 1,
+            pointerEvents: "none",
+          }}
+        >
+          ThreadCard
+        </div>
+      )}
     </div>
   );
 }

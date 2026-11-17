@@ -100,11 +100,15 @@ export function defaultSettings(): CardSettings {
     fontSize: 40,
     padding: 64,
     aspect: "auto",
+    cardScale: 100,
+    cardX: 0,
+    cardY: 0,
     showAvatar: true,
     showVerified: true,
     showTimestamp: true,
     showCounts: true,
     showMedia: true,
+    showWatermark: true,
   };
 }
 
