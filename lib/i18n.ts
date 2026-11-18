@@ -41,7 +41,7 @@ const id = {
   "editor.theme": "Tema",
   "editor.background": "Background",
   "editor.videoBackground": "Video background",
-  "editor.videoHint": "MP4/WebM · maks 25 MB · ekspor 12 dtk",
+  "editor.videoHint": "MP4/WebM · maks 25 MB · durasi ikut video",
   "editor.uploadVideo": "Upload video",
   "editor.replaceVideo": "Ganti",
   "editor.removeVideo": "Hapus",
@@ -127,6 +127,7 @@ const id = {
   "toast.multiBlocked":
     "Browser memblokir unduhan ganda. Unduh slide satu per satu.",
 
+  "footer.madeBy": "Dibuat oleh",
   "footer.legal":
     "Gunakan hanya untuk konten publik dan hormati hak pencipta.",
   "footer.disclaimer":
@@ -182,7 +183,7 @@ const en: Record<MessageKey, string> = {
   "editor.theme": "Theme",
   "editor.background": "Background",
   "editor.videoBackground": "Video background",
-  "editor.videoHint": "MP4/WebM · max 25 MB · 12s export",
+  "editor.videoHint": "MP4/WebM · max 25 MB · full video length",
   "editor.uploadVideo": "Upload video",
   "editor.replaceVideo": "Replace",
   "editor.removeVideo": "Remove",
@@ -268,6 +269,7 @@ const en: Record<MessageKey, string> = {
   "toast.multiBlocked":
     "The browser blocked multiple downloads. Download slides one by one.",
 
+  "footer.madeBy": "Made by",
   "footer.legal": "Use public content only and respect creators' rights.",
   "footer.disclaimer":
     "ThreadCard is not a Meta product. Not affiliated with Threads or Instagram.",

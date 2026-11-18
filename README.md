@@ -23,7 +23,7 @@ Paste a Threads URL, tweak the text and styling, export at 1080 px wide. No logi
 - **Aspect ratios** — auto (1080–2400 px tall), 1:1 (1080×1080), 4:5 (1080×1350) and 9:16 (1080×1920).
 - **Card layout** — scale the card from 40% to 120% and move it freely on the canvas with horizontal/vertical offset sliders.
 - **PNG export** — rendered client-side at 2× and downscaled to 1080 px wide, plus copy-to-clipboard.
-- **Video background** — upload an MP4/WebM (max 25 MB) and it loops behind the card. PNG export uses the frame on screen, and "Download video" records the composition to MP4 (H.264) when the browser supports it, WebM otherwise, up to 12 s.
+- **Video background** — upload an MP4/WebM (max 25 MB) and it loops behind the card. PNG export uses the frame on screen, and "Download video" records the whole length of the background video to MP4 (H.264) when the browser supports it, WebM otherwise.
 - **Background music** — attach an MP3/M4A/WAV (max 20 MB) to that video export. It loops when it is shorter than the clip, can be previewed from the panel, and its volume is adjustable (0–100%).
 - **Watermark** — a small ThreadCard badge in the bottom-right corner, on by default and toggleable.
 - **Card toggles** — avatar, verified badge, timestamp, engagement counts and media.
@@ -85,7 +85,7 @@ Scraping uses a crawler user agent and reads the JSON already embedded in the pu
 
 Threads changes its markup regularly and rate-limits anonymous traffic, so scraping can fail. When it does, the app says why (not found, private/blocked, rate limited, timeout) and offers manual entry. Only public posts by a single author can be turned into a card.
 
-Video export tries MP4 (H.264) first and falls back to WebM, depending on what the browser can record. Chrome/Edge record MP4, Firefox records WebM only, and Safari records MP4 but not WebM. Recordings are capped at 12 seconds and encode video at 8 Mbps with audio at 128 kbps.
+Video export tries MP4 (H.264) first and falls back to WebM, depending on what the browser can record. Chrome/Edge record MP4, Firefox records WebM only, and Safari records MP4 but not WebM. Recordings run for the full length of the background video (played back in real time) and encode video at 8 Mbps with audio at 128 kbps.
 
 Background music is only mixed into the video export, so the "Download video" button appears once a background video is loaded. AAC is used for the audio track when the browser ships an AAC encoder (branded Chrome/Edge, Safari); open-source Chromium builds such as Brave on Linux often do not, and then the MP4 carries Opus audio instead — playable in Chrome, Firefox, VLC and most players, but not in QuickTime or iOS Photos.
 

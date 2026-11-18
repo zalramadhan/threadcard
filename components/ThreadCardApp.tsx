@@ -5,6 +5,7 @@ import { CardMockup } from "@/components/CardMockup";
 import { Editor } from "@/components/Editor";
 import { ErrorState } from "@/components/ErrorState";
 import { Header } from "@/components/Header";
+import { GithubIcon, InstagramIcon } from "@/components/icons";
 import { I18nProvider, useI18n } from "@/components/I18nProvider";
 import { Toast } from "@/components/Toast";
 import { UrlForm } from "@/components/UrlForm";
@@ -100,6 +101,9 @@ function LoadingState() {
 function Footer() {
   const { t } = useI18n();
 
+  const socialClass =
+    "inline-flex items-center gap-1.5 font-medium text-neutral-500 transition hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-neutral-50";
+
   return (
     <footer className="mt-auto border-t border-neutral-200/80 px-5 py-6 dark:border-neutral-800 sm:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-1 text-[11px] leading-relaxed text-neutral-400 dark:text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
@@ -107,6 +111,34 @@ function Footer() {
         <p className="sm:text-right">
           {t("footer.disclaimer")} · {t("footer.privacy")}
         </p>
+      </div>
+      <div className="mx-auto mt-4 flex max-w-7xl flex-col gap-2 border-t border-neutral-200/70 pt-4 text-[11px] text-neutral-400 dark:border-neutral-800 dark:text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          {t("footer.madeBy")}{" "}
+          <span className="font-medium text-neutral-600 dark:text-neutral-300">
+            zalramadhan
+          </span>
+        </p>
+        <div className="flex items-center gap-4">
+          <a
+            href="https://instagram.com/zalsomeone"
+            target="_blank"
+            rel="noreferrer"
+            className={socialClass}
+          >
+            <InstagramIcon size={14} />
+            @zalsomeone
+          </a>
+          <a
+            href="https://github.com/zalramadhan"
+            target="_blank"
+            rel="noreferrer"
+            className={socialClass}
+          >
+            <GithubIcon size={14} />
+            GitHub
+          </a>
+        </div>
       </div>
     </footer>
   );

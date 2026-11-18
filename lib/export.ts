@@ -1,7 +1,6 @@
 import type { ThreadsPost } from "./types";
 
 const OUTPUT_WIDTH = 1080;
-const MAX_VIDEO_SECONDS = 12;
 const VIDEO_BITS_PER_SECOND = 8_000_000;
 const AUDIO_BITS_PER_SECOND = 128_000;
 const VIDEO_MIME_TYPES = [
@@ -234,13 +233,9 @@ function pickVideoMime(withAudio: boolean): string {
 }
 
 export function recordingDuration(durationHint: number): number {
-  return Math.min(
-    MAX_VIDEO_SECONDS,
-    Math.max(
-      1,
-      Number.isFinite(durationHint) && durationHint > 0 ? durationHint : 6,
-    ),
-  );
+  return Number.isFinite(durationHint) && durationHint > 0
+    ? durationHint
+    : 6;
 }
 
 export async function recordCardVideo(
