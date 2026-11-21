@@ -1,5 +1,34 @@
 export type Lang = "id" | "en";
 
+export type UserPlan = "free" | "lifetime";
+export type UserRole = "user" | "admin";
+
+export type PublicUser = {
+  id: string;
+  email: string;
+  name: string;
+  whatsapp: string;
+  role: UserRole;
+  plan: UserPlan;
+  status: "active" | "suspended";
+  createdAt: number;
+  activatedAt: number | null;
+  emailVerifiedAt: number | null;
+};
+
+export type OrderStatus = "pending" | "paid" | "cancelled";
+
+export type UserOrder = {
+  id: string;
+  code: string;
+  amount: number;
+  status: OrderStatus;
+  note: string;
+  createdAt: number;
+  confirmedAt: number | null;
+  whatsappUrl: string | null;
+};
+
 export type AspectRatio = "auto" | "1:1" | "4:5" | "9:16";
 
 export type FontKey = "sans" | "serif" | "mono";
@@ -108,10 +137,31 @@ export interface BackgroundVideo {
   url: string;
   name: string;
   duration: number;
+  assetId?: string;
 }
 
 export interface BackgroundAudio {
   url: string;
   name: string;
   duration: number;
+  assetId?: string;
+}
+
+/** Stored server-side so the editor can be resumed on another device. */
+export type SavedMedia = {
+  assetId: string;
+  name: string;
+  duration: number;
+};
+
+export interface SavedProject {
+  version: 1;
+  slides: Slide[];
+  settings: CardSettings;
+  source: "scrape" | "og" | "manual";
+  url: string;
+  backgroundVideo: SavedMedia | null;
+  backgroundAudio: SavedMedia | null;
+  audioVolume: number;
+  audioStart: number;
 }

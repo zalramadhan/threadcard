@@ -6,9 +6,10 @@ import { Editor } from "@/components/Editor";
 import { ErrorState } from "@/components/ErrorState";
 import { Header } from "@/components/Header";
 import { GithubIcon, InstagramIcon } from "@/components/icons";
-import { I18nProvider, useI18n } from "@/components/I18nProvider";
+import { useI18n } from "@/components/I18nProvider";
 import { Toast } from "@/components/Toast";
 import { UrlForm } from "@/components/UrlForm";
+import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import {
   captureVideoFrame,
   copyBlob,
@@ -25,6 +26,14 @@ import {
 } from "@/lib/export";
 import { fixedHeight } from "@/lib/format";
 import {
+  FREE_MAX_SLIDES,
+  FREE_MAX_WIDTH,
+  FREE_UNLOCK_SECONDS,
+  PAID_MAX_SLIDES,
+  PAID_WIDTH,
+} from "@/lib/plan";
+import { tp } from "@/lib/platform-i18n";
+import {
   defaultSettings,
   settingsForTheme,
 } from "@/lib/themes";
@@ -34,6 +43,8 @@ import type {
   CardSettings,
   ErrorCode,
   FetchPostResponse,
+  PublicUser,
+  SavedProject,
   Slide,
   SlideOverrides,
   ThreadsPost,
@@ -144,8 +155,22 @@ function Footer() {
   );
 }
 
-function ThreadCardApp() {
+function ThreadCardApp({
+  user,
+  savedProject,
+  shopeeUrl,
+  lifetimePrice,
+}: {
+  user: PublicUser | null;
+  savedProject: { project: SavedProject; updatedAt: number } | null;
+  shopeeUrl: string;
+  lifetimePrice: number;
+}) {
   const { t, lang } = useI18n();
+  const paid = user?.plan === "lifetime";
+  const verified = Boolean(user?.emailVerifiedAt);
+  const maxSlides = paid ? PAID_MAX_SLIDES : FREE_MAX_SLIDES;
+  const outputWidth = paid ? PAID_WIDTH : FREE_MAX_WIDTH;
 
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState<Status>("idle");
@@ -166,6 +191,13 @@ function ThreadCardApp() {
   const [musicPlaying, setMusicPlaying] = useState(false);
   const [exportRender, setExportRender] =
     useState<ExportRender>(DEFAULT_EXPORT_RENDER);
+  const [unlocked, setUnlocked] = useState(false);
+  const [unlockSeconds, setUnlockSeconds] = useState(0);
+  const [savingProject, setSavingProject] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(
+    savedProject?.updatedAt ?? null,
+  );
+  const canExport = Boolean(user) && verified && (paid || unlocked);
 
   const exportRefs = useRef<Array<HTMLDivElement | null>>([]);
   const requestId = useRef(0);
@@ -185,6 +217,20 @@ function ThreadCardApp() {
     const timeout = window.setTimeout(() => setToast(null), 3200);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    if (unlockSeconds <= 0) return;
+    const timer = window.setTimeout(() => {
+      if (unlockSeconds <= 1) {
+        setUnlocked(true);
+        setUnlockSeconds(0);
+        setToast(tp(lang, "unlock.ready"));
+        return;
+      }
+      setUnlockSeconds(unlockSeconds - 1);
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [lang, unlockSeconds]);
 
   useEffect(() => {
     return () => {
@@ -210,13 +256,59 @@ function ThreadCardApp() {
     [],
   );
 
+  const uploadAsset = useCallback(
+    async (file: File, kind: "video" | "audio"): Promise<string | undefined> => {
+      if (!user) return undefined;
+      try {
+        const res = await fetch("/api/media", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind,
+            name: file.name,
+            size: file.size,
+            mime: file.type,
+          }),
+        });
+        if (!res.ok) return undefined;
+        const data = (await res.json()) as {
+          asset?: { id: string };
+          upload?: { signedUrl: string };
+        };
+        if (!data.asset?.id || !data.upload?.signedUrl) return undefined;
+
+        const put = await fetch(data.upload.signedUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type, "x-upsert": "false" },
+          body: file,
+        });
+        if (!put.ok) {
+          await fetch(`/api/media/${data.asset.id}`, { method: "DELETE" }).catch(
+            () => undefined,
+          );
+          return undefined;
+        }
+        return data.asset.id;
+      } catch (caught) {
+        console.error(caught);
+        return undefined;
+      }
+    },
+    [user],
+  );
+
   const handleBackgroundVideo = useCallback(
     async (file: File) => {
       const url = URL.createObjectURL(file);
       const duration = await readVideoDuration(url);
       applyBackgroundVideo({ url, name: file.name, duration });
+      const assetId = await uploadAsset(file, "video");
+      if (!assetId) return;
+      setBackgroundVideo((previous) =>
+        previous && previous.url === url ? { ...previous, assetId } : previous,
+      );
     },
-    [applyBackgroundVideo],
+    [applyBackgroundVideo, uploadAsset],
   );
 
   const applyBackgroundAudio = useCallback((next: BackgroundAudio | null) => {
@@ -245,8 +337,13 @@ function ThreadCardApp() {
       const url = URL.createObjectURL(file);
       const duration = await readAudioDuration(url);
       applyBackgroundAudio({ url, name: file.name, duration });
+      const assetId = await uploadAsset(file, "audio");
+      if (!assetId) return;
+      setBackgroundAudio((previous) =>
+        previous && previous.url === url ? { ...previous, assetId } : previous,
+      );
     },
-    [applyBackgroundAudio],
+    [applyBackgroundAudio, uploadAsset],
   );
 
   const clearBackgroundVideo = useCallback(() => {
@@ -339,9 +436,10 @@ function ThreadCardApp() {
           return;
         }
 
-        setSlides(
-          body.data.posts.map((post) => ({ post, overrides: {} })),
-        );
+        const posts = paid
+          ? body.data.posts
+          : body.data.posts.slice(0, FREE_MAX_SLIDES);
+        setSlides(posts.map((post) => ({ post, overrides: {} })));
         setActive(0);
         setSettings(defaultSettings());
         setSource(body.data.source === "og" ? "og" : "scrape");
@@ -354,7 +452,7 @@ function ThreadCardApp() {
         setStatus("error");
       }
     },
-    [t],
+    [paid, t],
   );
 
   const startManual = useCallback(() => {
@@ -453,12 +551,12 @@ function ThreadCardApp() {
       await nextPaint();
 
       try {
-        return await nodeToPngBlob(node, settings.background);
+        return await nodeToPngBlob(node, settings.background, outputWidth);
       } finally {
         setExportRender(DEFAULT_EXPORT_RENDER);
       }
     },
-    [backgroundVideo, settings.background],
+    [backgroundVideo, outputWidth, settings.background],
   );
 
   const handleDownload = useCallback(async () => {
@@ -469,13 +567,14 @@ function ThreadCardApp() {
       const blob = await exportSlide(active);
       downloadBlob(blob, slideFilename(slide.post, active, slides.length));
       setToast(t("toast.downloaded"));
+      if (!paid) setUnlocked(false);
     } catch (caught) {
       console.error(caught);
       setToast(t("toast.exportFailed"));
     } finally {
       setBusy(false);
     }
-  }, [active, busy, exportSlide, slides, t]);
+  }, [active, busy, exportSlide, paid, slides, t]);
 
   const handleDownloadAll = useCallback(async () => {
     if (busy) return;
@@ -490,16 +589,21 @@ function ThreadCardApp() {
         if (index < slides.length - 1) await delay(400);
       }
       setToast(t("toast.allDownloaded", { total: slides.length }));
+      if (!paid) setUnlocked(false);
     } catch (caught) {
       console.error(caught);
       setToast(t("toast.exportFailed"));
     } finally {
       setBusy(false);
     }
-  }, [busy, exportSlide, slides, t]);
+  }, [busy, exportSlide, paid, slides, t]);
 
   const handleDownloadVideo = useCallback(async () => {
     if (busy || !backgroundVideo) return;
+    if (!paid) {
+      setToast(tp(lang, "editor.videoLocked"));
+      return;
+    }
     const slide = slides[active];
     if (!slide) return;
 
@@ -571,7 +675,9 @@ function ThreadCardApp() {
     busy,
     clampedAudioStart,
     ensureAudioGraph,
+    lang,
     musicLoops,
+    paid,
     slides,
     t,
   ]);
@@ -593,26 +699,150 @@ function ThreadCardApp() {
         );
         setToast(t("toast.copyFallback"));
       }
+      if (!paid) setUnlocked(false);
     } catch (caught) {
       console.error(caught);
       setToast(t("toast.exportFailed"));
     } finally {
       setBusy(false);
     }
-  }, [active, busy, exportSlide, slides, t]);
+  }, [active, busy, exportSlide, paid, slides, t]);
+
+  const startUnlock = useCallback(() => {
+    if (!shopeeUrl) {
+      setToast(tp(lang, "unlock.missing"));
+      return;
+    }
+    if (unlockSeconds > 0) return;
+    window.open(shopeeUrl, "_blank", "noopener,noreferrer");
+    setUnlockSeconds(FREE_UNLOCK_SECONDS);
+  }, [lang, shopeeUrl, unlockSeconds]);
+
+  const handleSaveProject = useCallback(async () => {
+    if (!user) {
+      setToast(tp(lang, "project.loginRequired"));
+      return;
+    }
+    if (savingProject) return;
+    setSavingProject(true);
+    try {
+      const project: SavedProject = {
+        version: 1,
+        slides: paid ? slides : slides.slice(0, FREE_MAX_SLIDES),
+        settings,
+        source,
+        url,
+        backgroundVideo: backgroundVideo?.assetId
+          ? {
+              assetId: backgroundVideo.assetId,
+              name: backgroundVideo.name,
+              duration: backgroundVideo.duration,
+            }
+          : null,
+        backgroundAudio: backgroundAudio?.assetId
+          ? {
+              assetId: backgroundAudio.assetId,
+              name: backgroundAudio.name,
+              duration: backgroundAudio.duration,
+            }
+          : null,
+        audioVolume,
+        audioStart: clampedAudioStart,
+      };
+
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project }),
+      });
+      const data = (await res.json()) as { updatedAt?: number; error?: string };
+      if (!res.ok) {
+        setToast(data.error ?? tp(lang, "project.saveFailed"));
+        return;
+      }
+      setSavedAt(data.updatedAt ?? Date.now());
+      setToast(tp(lang, "project.saved"));
+    } catch (caught) {
+      console.error(caught);
+      setToast(tp(lang, "project.saveFailed"));
+    } finally {
+      setSavingProject(false);
+    }
+  }, [
+    audioVolume,
+    backgroundAudio,
+    backgroundVideo,
+    clampedAudioStart,
+    lang,
+    paid,
+    savingProject,
+    settings,
+    slides,
+    source,
+    url,
+    user,
+  ]);
+
+  const loadSavedProject = useCallback(() => {
+    if (!savedProject) return;
+    const project = savedProject.project;
+    const nextSlides = paid
+      ? project.slides
+      : project.slides.slice(0, FREE_MAX_SLIDES);
+    setSlides(
+      nextSlides.map((slide) => ({
+        ...slide,
+        overrides: { ...slide.overrides },
+      })),
+    );
+    setSettings({
+      ...project.settings,
+      showWatermark: paid ? project.settings.showWatermark : true,
+    });
+    setSource(project.source);
+    setUrl(project.url);
+    setActive(0);
+    setError(null);
+    setFormError(null);
+    if (project.backgroundVideo) {
+      applyBackgroundVideo({
+        url: `/api/media/${project.backgroundVideo.assetId}`,
+        name: project.backgroundVideo.name,
+        duration: project.backgroundVideo.duration,
+        assetId: project.backgroundVideo.assetId,
+      });
+    } else {
+      applyBackgroundVideo(null);
+    }
+    if (project.backgroundAudio) {
+      applyBackgroundAudio({
+        url: `/api/media/${project.backgroundAudio.assetId}`,
+        name: project.backgroundAudio.name,
+        duration: project.backgroundAudio.duration,
+        assetId: project.backgroundAudio.assetId,
+      });
+    } else {
+      applyBackgroundAudio(null);
+    }
+    setAudioVolume(project.audioVolume);
+    setAudioStart(project.audioStart);
+    setSavedAt(savedProject.updatedAt);
+    setStatus("ready");
+  }, [applyBackgroundAudio, applyBackgroundVideo, paid, savedProject]);
 
   const currentSlide = slides[active];
 
   return (
     <div className="flex min-h-screen flex-col bg-[#FAFAFA] text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50">
-      <Header />
+      <Header user={user} />
+      {user && !verified && <VerifyEmailBanner user={user} />}
 
       <main className="flex-1">
         {status !== "ready" && (
           <section className="mx-auto max-w-3xl px-5 pb-10 pt-10 text-center sm:pt-16">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] font-medium text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
               <span className="h-1.5 w-1.5 rounded-full bg-neutral-900 dark:bg-neutral-100" />
-              Threads → PNG · Free
+              {paid ? "Threads → PNG · Lifetime" : "Threads → PNG · Free"}
             </div>
             <h1 className="text-balance text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">
               {t("hero.title")}
@@ -620,6 +850,30 @@ function ThreadCardApp() {
             <p className="mx-auto mt-4 max-w-xl text-pretty text-sm leading-7 text-neutral-500 dark:text-neutral-400 sm:text-base">
               {t("hero.subtitle")}
             </p>
+            {user && savedProject && (
+              <div className="card mx-auto mt-6 flex max-w-xl flex-wrap items-center justify-between gap-3 px-4 py-3 text-left">
+                <div>
+                  <p className="text-[12px] font-semibold text-neutral-900 dark:text-neutral-100">
+                    {tp(lang, "project.continue")}
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] text-neutral-500 dark:text-neutral-400">
+                    {tp(lang, "project.updated", {
+                      when: new Date(savedProject.updatedAt).toLocaleString(
+                        lang === "id" ? "id-ID" : "en-US",
+                        { dateStyle: "medium", timeStyle: "short" },
+                      ),
+                    })}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={loadSavedProject}
+                  className="btn btn-primary"
+                >
+                  {tp(lang, "project.continue")}
+                </button>
+              </div>
+            )}
             <div className="mt-8">
               <UrlForm
                 value={url}
@@ -635,6 +889,27 @@ function ThreadCardApp() {
               />
             </div>
             <p className="mt-3 text-xs text-neutral-400 dark:text-neutral-500">{t("hero.note")}</p>
+            {!paid && (
+              <p className="mt-1 text-[11px] text-neutral-400 dark:text-neutral-500">
+                {tp(lang, "plan.price", {
+                  price: new Intl.NumberFormat(
+                    lang === "id" ? "id-ID" : "en-US",
+                    {
+                      style: "currency",
+                      currency: "IDR",
+                      maximumFractionDigits: 0,
+                    },
+                  ).format(lifetimePrice),
+                })}{" "}
+                ·{" "}
+                <a
+                  href="/help"
+                  className="font-medium underline underline-offset-4 hover:text-neutral-900 dark:hover:text-neutral-100"
+                >
+                  {tp(lang, "account.help")}
+                </a>
+              </p>
+            )}
           </section>
         )}
 
@@ -719,6 +994,21 @@ function ThreadCardApp() {
               }}
               onNewPost={reset}
               onToast={setToast}
+              plan={user?.plan ?? "free"}
+              signedIn={Boolean(user)}
+              verified={verified}
+              canExport={canExport}
+              unlocked={unlocked}
+              unlockSeconds={unlockSeconds}
+              shopeeUrl={shopeeUrl}
+              onUnlock={startUnlock}
+              savingProject={savingProject}
+              savedAt={savedAt}
+              onSaveProject={() => {
+                void handleSaveProject();
+              }}
+              maxSlides={maxSlides}
+              outputWidth={outputWidth}
             />
           </>
         )}
@@ -774,10 +1064,23 @@ function ThreadCardApp() {
   );
 }
 
-export function App() {
+export function App({
+  user,
+  savedProject,
+  shopeeUrl,
+  lifetimePrice,
+}: {
+  user: PublicUser | null;
+  savedProject: { project: SavedProject; updatedAt: number } | null;
+  shopeeUrl: string;
+  lifetimePrice: number;
+}) {
   return (
-    <I18nProvider>
-      <ThreadCardApp />
-    </I18nProvider>
+    <ThreadCardApp
+      user={user}
+      savedProject={savedProject}
+      shopeeUrl={shopeeUrl}
+      lifetimePrice={lifetimePrice}
+    />
   );
 }

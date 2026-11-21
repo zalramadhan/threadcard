@@ -1,5 +1,6 @@
 "use client";
 
+import { AccountBar } from "@/components/AccountBar";
 import { CardPreview } from "@/components/CardPreview";
 import { ControlPanel } from "@/components/ControlPanel";
 import { useI18n } from "@/components/I18nProvider";
@@ -11,6 +12,7 @@ import type {
   Lang,
   Slide,
   SlideOverrides,
+  UserPlan,
 } from "@/lib/types";
 
 interface EditorProps {
@@ -45,6 +47,19 @@ interface EditorProps {
   onCopy: () => void;
   onNewPost: () => void;
   onToast: (message: string) => void;
+  plan: UserPlan;
+  signedIn: boolean;
+  verified: boolean;
+  canExport: boolean;
+  unlocked: boolean;
+  unlockSeconds: number;
+  shopeeUrl: string;
+  onUnlock: () => void;
+  savingProject: boolean;
+  savedAt: number | null;
+  onSaveProject: () => void;
+  maxSlides: number;
+  outputWidth: number;
 }
 
 export function Editor({
@@ -79,6 +94,19 @@ export function Editor({
   onCopy,
   onNewPost,
   onToast,
+  plan,
+  signedIn,
+  verified,
+  canExport,
+  unlocked,
+  unlockSeconds,
+  shopeeUrl,
+  onUnlock,
+  savingProject,
+  savedAt,
+  onSaveProject,
+  maxSlides,
+  outputWidth,
 }: EditorProps) {
   const { t } = useI18n();
   const slide = slides[active];
@@ -86,6 +114,17 @@ export function Editor({
 
   return (
     <div className="mx-auto w-full max-w-7xl px-5 pb-16 sm:px-8">
+      <AccountBar
+        lang={lang}
+        plan={plan}
+        signedIn={signedIn}
+        verified={verified}
+        savedAt={savedAt}
+        saving={savingProject}
+        onSave={onSaveProject}
+        slideCount={slides.length}
+        maxSlides={maxSlides}
+      />
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-6">
         <div className="sticky top-0 z-30 -mx-5 mb-4 min-w-0 border-b border-neutral-200/80 bg-[#FAFAFA]/95 px-5 pb-2 pt-2 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/95 sm:-mx-8 sm:px-8 lg:top-6 lg:z-auto lg:mx-0 lg:mb-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
           <div className="mb-2 flex items-center justify-between lg:mb-3">
@@ -93,7 +132,9 @@ export function Editor({
               {t("editor.preview")}
             </span>
             <span className="hidden text-[11px] text-neutral-400 dark:text-neutral-500 sm:inline">
-              {backgroundVideo ? "PNG · MP4/WebM · 1080 px" : "PNG · 1080 px"}
+              {backgroundVideo
+                ? `PNG · MP4/WebM · ${outputWidth} px`
+                : `PNG · ${outputWidth} px`}
             </span>
           </div>
 
@@ -142,6 +183,14 @@ export function Editor({
           onCopy={onCopy}
           onNewPost={onNewPost}
           onToast={onToast}
+          plan={plan}
+          signedIn={signedIn}
+          verified={verified}
+          canExport={canExport}
+          unlocked={unlocked}
+          unlockSeconds={unlockSeconds}
+          shopeeUrl={shopeeUrl}
+          onUnlock={onUnlock}
         />
       </div>
     </div>

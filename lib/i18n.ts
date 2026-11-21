@@ -9,10 +9,10 @@ const id = {
 
   "hero.title": "Ubah post Threads jadi gambar.",
   "hero.subtitle":
-    "Tempel link post publik, atur tampilannya, lalu unduh PNG. Gratis, tanpa login.",
+    "Tempel link post publik, atur tampilannya, lalu unduh PNG. Mulai gratis dengan akun.",
   "hero.placeholder": "Tempel link post Threads…",
   "hero.cta": "Buat gambar",
-  "hero.note": "Hanya post publik. Tanpa QR, tanpa akun, tanpa pelacakan.",
+  "hero.note": "Hanya post publik. Export butuh akun dengan email terverifikasi.",
 
   "state.loading": "Mengambil post…",
   "state.loadingHint": "Biasanya kurang dari 5 detik.",
@@ -132,7 +132,7 @@ const id = {
     "Gunakan hanya untuk konten publik dan hormati hak pencipta.",
   "footer.disclaimer":
     "ThreadCard bukan produk Meta. Tidak berafiliasi dengan Threads atau Instagram.",
-  "footer.privacy": "Tidak ada data yang disimpan di server.",
+  "footer.privacy": "Akun dan project tersimpan di server milikmu.",
 } as const;
 
 type MessageKey = keyof typeof id;
@@ -146,10 +146,10 @@ const en: Record<MessageKey, string> = {
 
   "hero.title": "Turn Threads posts into images.",
   "hero.subtitle":
-    "Paste a public post link, style it, then download a PNG. Free, no sign-up.",
+    "Paste a public post link, style it, then download a PNG. Start free with an account.",
   "hero.placeholder": "Paste a Threads post link…",
   "hero.cta": "Create image",
-  "hero.note": "Public posts only. No QR, no account, no tracking.",
+  "hero.note": "Public posts only. Export needs an account with a verified email.",
 
   "state.loading": "Fetching post…",
   "state.loadingHint": "Usually under 5 seconds.",
@@ -273,7 +273,7 @@ const en: Record<MessageKey, string> = {
   "footer.legal": "Use public content only and respect creators' rights.",
   "footer.disclaimer":
     "ThreadCard is not a Meta product. Not affiliated with Threads or Instagram.",
-  "footer.privacy": "No data is stored on the server.",
+  "footer.privacy": "Accounts and projects are stored on your own server.",
 };
 
 const messages: Record<Lang, Record<MessageKey, string>> = { id, en };

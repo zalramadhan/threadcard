@@ -1,15 +1,19 @@
 "use client";
 
+import Link from "next/link";
+import { AccountMenu } from "@/components/AccountMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ThreadsMark } from "@/components/icons";
 import { useI18n } from "@/components/I18nProvider";
+import { tp } from "@/lib/platform-i18n";
+import type { PublicUser } from "@/lib/types";
 
-export function Header() {
+export function Header({ user }: { user?: PublicUser | null }) {
   const { lang, setLang, t } = useI18n();
 
   return (
     <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
-      <div className="flex items-center gap-2.5">
+      <Link href="/" className="flex items-center gap-2.5">
         <ThreadsMark
           size={30}
           className="text-neutral-950 dark:text-neutral-50"
@@ -22,7 +26,7 @@ export function Header() {
             {t("app.tagline")}
           </div>
         </div>
-      </div>
+      </Link>
 
       <div className="flex items-center gap-2">
         <div
@@ -47,6 +51,13 @@ export function Header() {
           ))}
         </div>
         <ThemeToggle />
+        {user ? (
+          <AccountMenu user={user} />
+        ) : (
+          <Link href="/login" className="btn">
+            {tp(lang, "auth.login")}
+          </Link>
+        )}
       </div>
     </header>
   );

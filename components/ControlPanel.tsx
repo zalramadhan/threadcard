@@ -9,6 +9,7 @@ import {
 } from "@/components/icons";
 import { formatDate } from "@/lib/format";
 import type { MessageKey } from "@/lib/i18n";
+import { tp } from "@/lib/platform-i18n";
 import { THEMES } from "@/lib/themes";
 import type {
   AspectRatio,
@@ -18,6 +19,7 @@ import type {
   Lang,
   Slide,
   SlideOverrides,
+  UserPlan,
 } from "@/lib/types";
 
 const inputClass =
@@ -76,6 +78,14 @@ interface ControlPanelProps {
   onCopy: () => void;
   onNewPost: () => void;
   onToast: (message: string) => void;
+  plan: UserPlan;
+  signedIn: boolean;
+  verified: boolean;
+  canExport: boolean;
+  unlocked: boolean;
+  unlockSeconds: number;
+  shopeeUrl: string;
+  onUnlock: () => void;
 }
 
 function Section({
@@ -104,10 +114,12 @@ function Toggle({
   label,
   checked,
   onChange,
+  disabled = false,
 }: {
   label: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -119,8 +131,9 @@ function Toggle({
         role="switch"
         aria-checked={checked}
         aria-label={label}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-10 shrink-0 rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 dark:focus-visible:ring-neutral-100 dark:focus-visible:ring-offset-neutral-900 ${
+        className={`relative h-6 w-10 shrink-0 rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-neutral-100 dark:focus-visible:ring-offset-neutral-900 ${
           checked
             ? "bg-neutral-950 dark:bg-neutral-100"
             : "bg-neutral-200 dark:bg-neutral-700"
@@ -201,6 +214,14 @@ export function ControlPanel({
   onCopy,
   onNewPost,
   onToast,
+  plan,
+  signedIn,
+  verified,
+  canExport,
+  unlocked,
+  unlockSeconds,
+  shopeeUrl,
+  onUnlock,
 }: ControlPanelProps) {
   const { t } = useI18n();
   const { post, overrides } = slide;
@@ -782,8 +803,14 @@ export function ControlPanel({
         <Toggle
           label={t("toggle.watermark")}
           checked={settings.showWatermark}
+          disabled={plan === "free"}
           onChange={(value) => onSettings({ showWatermark: value })}
         />
+        {plan === "free" && (
+          <p className="text-[10.5px] text-amber-700 dark:text-amber-300">
+            {tp(lang, "editor.watermarkLocked")}
+          </p>
+        )}
       </Section>
 
       <Section title={t("editor.size")}>
@@ -900,21 +927,93 @@ export function ControlPanel({
       </Section>
 
       <Section title={t("editor.export")}>
+        <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-[11px] leading-relaxed text-neutral-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+          <p className="font-semibold text-neutral-900 dark:text-neutral-100">
+            {plan === "lifetime"
+              ? tp(lang, "plan.lifetimeExport")
+              : tp(lang, "editor.exportWidth", { width: 720 })}
+          </p>
+          <p>
+            {total} {total === 1 ? "slide" : "slides"}
+          </p>
+        </div>
+
+        {!signedIn && (
+          <p className="text-[11.5px] leading-relaxed text-amber-700 dark:text-amber-300">
+            {tp(lang, "editor.loginToExport")}{" "}
+            <a href="/login" className="font-semibold underline underline-offset-4">
+              {tp(lang, "auth.login")}
+            </a>
+          </p>
+        )}
+
+        {signedIn && !verified && (
+          <p className="text-[11.5px] leading-relaxed text-amber-700 dark:text-amber-300">
+            {tp(lang, "editor.verifiedOnly")}
+          </p>
+        )}
+
+        {signedIn && verified && plan === "free" && !unlocked && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+            <p className="text-[11.5px] font-semibold text-neutral-900 dark:text-neutral-100">
+              {tp(lang, "unlock.title")}
+            </p>
+            <p className="mt-1 text-[10.5px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+              {tp(lang, "unlock.body", { seconds: 5 })}
+            </p>
+            {shopeeUrl ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onUnlock}
+                  disabled={unlockSeconds > 0}
+                  className="btn btn-primary"
+                >
+                  {unlockSeconds > 0
+                    ? tp(lang, "unlock.checking", { seconds: unlockSeconds })
+                    : tp(lang, "unlock.button")}
+                </button>
+                <a
+                  href={shopeeUrl}
+                  target="_blank"
+                  rel="sponsored noopener noreferrer"
+                  className="text-[10.5px] font-medium text-neutral-900 underline underline-offset-4 dark:text-neutral-100"
+                >
+                  {tp(lang, "unlock.open")}
+                </a>
+              </div>
+            ) : (
+              <p className="mt-2 text-[10.5px] text-amber-700 dark:text-amber-300">
+                {tp(lang, "unlock.missing")}
+              </p>
+            )}
+            <p className="mt-2 text-[9.5px] text-neutral-400 dark:text-neutral-500">
+              {tp(lang, "unlock.note")}
+            </p>
+          </div>
+        )}
+
+        {signedIn && verified && plan === "free" && unlocked && (
+          <p className="text-[10.5px] font-medium text-emerald-700 dark:text-emerald-300">
+            {tp(lang, "unlock.ready")}
+          </p>
+        )}
+
         <button
           type="button"
           onClick={onDownload}
-          disabled={busy}
+          disabled={busy || !canExport}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-50 dark:text-neutral-950 dark:hover:bg-neutral-200"
         >
           {busy ? <SpinnerIcon size={16} /> : <DownloadIcon size={16} />}
           {busy ? t("state.exporting") : t("action.download")}
         </button>
 
-        {backgroundVideo && (
+        {backgroundVideo && plan === "lifetime" && (
           <button
             type="button"
             onClick={onDownloadVideo}
-            disabled={busy}
+            disabled={busy || !canExport}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
           >
             {busy ? <SpinnerIcon size={16} /> : <DownloadIcon size={16} />}
@@ -922,10 +1021,16 @@ export function ControlPanel({
           </button>
         )}
 
+        {backgroundVideo && plan === "free" && (
+          <p className="text-[10.5px] text-neutral-500 dark:text-neutral-400">
+            {tp(lang, "editor.videoLocked")}
+          </p>
+        )}
+
         <button
           type="button"
           onClick={onCopy}
-          disabled={busy}
+          disabled={busy || !canExport}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
         >
           <CopyIcon size={16} />
@@ -936,7 +1041,7 @@ export function ControlPanel({
           <button
             type="button"
             onClick={onDownloadAll}
-            disabled={busy}
+            disabled={busy || !canExport}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
           >
             <DownloadIcon size={16} />

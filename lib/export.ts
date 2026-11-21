@@ -63,12 +63,14 @@ async function renderNode(
 export async function nodeToPngBlob(
   node: HTMLElement,
   background: string,
+  outputWidth = OUTPUT_WIDTH,
 ): Promise<Blob> {
   const rendered = await renderNode(node, 2, background);
 
   const output = document.createElement("canvas");
-  output.width = OUTPUT_WIDTH;
-  output.height = Math.max(1, Math.round(rendered.height / 2));
+  const scale = outputWidth / OUTPUT_WIDTH;
+  output.width = outputWidth;
+  output.height = Math.max(1, Math.round((rendered.height / 2) * scale));
 
   const context = output.getContext("2d");
   if (!context) throw new Error("Canvas is not supported");

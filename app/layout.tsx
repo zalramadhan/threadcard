@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { I18nProvider } from "@/components/I18nProvider";
 import {
   Instrument_Serif,
   Inter,
@@ -29,7 +30,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "ThreadCard — Turn Threads posts into images",
   description:
-    "Paste a public Threads post link, style it, and download a crisp PNG. Free, no sign-up, no watermark.",
+    "Paste a public Threads post link, style it, and download a crisp PNG. Start free; upgrade for clean 1080 px.",
   applicationName: "ThreadCard",
   openGraph: {
     title: "ThreadCard — Turn Threads posts into images",
@@ -65,7 +66,7 @@ export default function RootLayout({
             to use ThreadCard.
           </div>
         </noscript>
-        {children}
+        <I18nProvider>{children}</I18nProvider>
       </body>
     </html>
   );
